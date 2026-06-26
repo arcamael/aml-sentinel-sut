@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     provider_cache_ttl_s: int = 300
     provider_version_ttl_s: int = 10
 
+    # ── Observability (Phase 8) ──────────────────────────────────────────────
+    alert_sink_url: str = "http://localhost:9301"
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy / Alembic connection URL (psycopg2 driver)."""

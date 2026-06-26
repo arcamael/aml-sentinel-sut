@@ -36,6 +36,7 @@ from aml_sentinel.events import (
     make_envelope,
 )
 from aml_sentinel.matching.normalize import normalize
+from aml_sentinel.observability.dead_letter import record_dead_letter
 from aml_sentinel.observability.logging import configure_logging, stage_log
 
 COMPONENT = "normalizer"
@@ -191,17 +192,30 @@ def main() -> None:  # pragma: no cover - long-running service entrypoint
                 )
                 continue
 
-            envelope = json.loads(msg.value())
-            with SessionLocal() as session:
-                process_message(
-                    session,
-                    producer,
-                    envelope=envelope,
+            try:
+                envelope = json.loads(msg.value())
+                with SessionLocal() as session:
+                    process_message(
+                        session,
+                        producer,
+                        envelope=envelope,
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                    )
+            except Exception as exc:
+                # No partial DB write (the session rolled back); record the
+                # poison message so it is neither lost nor blocks the partition.
+                record_dead_letter(
+                    stage="normalize",
+                    component=COMPONENT,
                     topic=msg.topic(),
                     partition=msg.partition(),
                     offset=msg.offset(),
+                    error=exc,
                 )
-            # At-least-once: commit offset only after the effect is durable.
+            # At-least-once: commit offset only after the effect is durable
+            # (or dead-lettered) so the partition keeps moving.
             consumer.commit(message=msg, asynchronous=False)
     finally:
         consumer.close()

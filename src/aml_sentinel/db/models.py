@@ -210,6 +210,31 @@ class Idempotency(Base):
     )
 
 
+class DeadLetter(Base):
+    """§Phase 8 — failed messages, so no failure is silently dropped.
+
+    A worker that cannot process a message records it here (with the stage and
+    error) instead of crashing or losing it; the dead-letter count is a
+    data-quality metric and the rows are a test surface (doc 02 §6 rule 3).
+    """
+
+    __tablename__ = "dead_letter"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    topic: Mapped[str] = mapped_column(String, nullable=False)
+    partition: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    msg_offset: Mapped[int] = mapped_column("offset", Integer, nullable=False, default=0)
+    trace_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    client_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    stage: Mapped[str] = mapped_column(String, nullable=False)
+    error_type: Mapped[str] = mapped_column(String, nullable=False)
+    error_msg: Mapped[str] = mapped_column(String, nullable=False)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class ReconciliationRun(Base):
     """§4.9 — bookkeeping for a list-update reconciliation pass."""
 

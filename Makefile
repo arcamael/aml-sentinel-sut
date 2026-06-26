@@ -1,7 +1,7 @@
 .PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
-        normalizer screening-worker decision-engine reconciler gen-golden gen-watchlists \
-        gen-matching gen-decisions gen-updates \
-        verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7
+        normalizer screening-worker decision-engine reconciler monitors gen-golden \
+        gen-watchlists gen-matching gen-decisions gen-updates \
+        verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7 verify-phase8
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -55,6 +55,9 @@ decision-engine:
 reconciler:
 	PYTHONPATH=src python -m aml_sentinel.workers.reconciler
 
+monitors:
+	PYTHONPATH=src uvicorn aml_sentinel.observability.app:app --host 0.0.0.0 --port 9300
+
 gen-golden:
 	PYTHONPATH=src python -m tools.datagen golden --seed 42 --out data/golden/
 
@@ -84,6 +87,9 @@ verify-phase6:
 
 verify-phase7:
 	PYTHONPATH=src:. python scripts/verify_phase7.py
+
+verify-phase8:
+	PYTHONPATH=src:. python scripts/verify_phase8.py
 
 test:
 	pytest -q

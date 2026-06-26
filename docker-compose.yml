@@ -297,3 +297,44 @@ services:
       retries: 10
     networks:
       - aml-net
+
+  # ─── Alert sink (capture-only) + Monitors (Phase 8) ──────────────────────
+  alert-sink:
+    build:
+      context: .
+      dockerfile: mocks/Dockerfile
+    container_name: aml-alert-sink
+    command: ["uvicorn", "mocks.alert_sink.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "9301:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aml-net
+
+  monitors:
+    build: .
+    container_name: aml-monitors
+    depends_on:
+      postgres:
+        condition: service_healthy
+      alert-sink:
+        condition: service_healthy
+    environment:
+      AML_POSTGRES_HOST: postgres
+      AML_REDIS_HOST: redis
+      AML_KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      AML_ALERT_SINK_URL: http://alert-sink:8000
+    command: ["uvicorn", "aml_sentinel.observability.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "9300:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aml-net

@@ -40,6 +40,7 @@ from aml_sentinel.db.models import (
     WatchlistEntry,
 )
 from aml_sentinel.events import TOPIC_WATCHLIST_UPDATED, EventProducer
+from aml_sentinel.observability.dead_letter import record_dead_letter
 from aml_sentinel.observability.logging import configure_logging, stage_log
 from aml_sentinel.providers.gateway import ProviderGateway
 from aml_sentinel.workers import decision as decision_worker
@@ -334,16 +335,26 @@ def main() -> None:  # pragma: no cover - long-running service entrypoint
                 )
                 continue
 
-            envelope = json.loads(msg.value())
-            with SessionLocal() as session:
-                process_message(
-                    session,
-                    gateway,
-                    producer,
-                    envelope=envelope,
+            try:
+                envelope = json.loads(msg.value())
+                with SessionLocal() as session:
+                    process_message(
+                        session,
+                        gateway,
+                        producer,
+                        envelope=envelope,
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                    )
+            except Exception as exc:
+                record_dead_letter(
+                    stage="reconcile",
+                    component=COMPONENT,
                     topic=msg.topic(),
                     partition=msg.partition(),
                     offset=msg.offset(),
+                    error=exc,
                 )
             consumer.commit(message=msg, asynchronous=False)
     finally:

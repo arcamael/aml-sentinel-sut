@@ -38,6 +38,7 @@ from aml_sentinel.events import (
     EventProducer,
     make_envelope,
 )
+from aml_sentinel.observability.dead_letter import record_dead_letter
 from aml_sentinel.observability.logging import configure_logging, stage_log
 from aml_sentinel.workers.normalizer import idempotency_key
 
@@ -226,15 +227,25 @@ def main() -> None:  # pragma: no cover - long-running service entrypoint
                 )
                 continue
 
-            envelope = json.loads(msg.value())
-            with SessionLocal() as session:
-                process_message(
-                    session,
-                    producer,
-                    envelope=envelope,
+            try:
+                envelope = json.loads(msg.value())
+                with SessionLocal() as session:
+                    process_message(
+                        session,
+                        producer,
+                        envelope=envelope,
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                    )
+            except Exception as exc:
+                record_dead_letter(
+                    stage="decide",
+                    component=COMPONENT,
                     topic=msg.topic(),
                     partition=msg.partition(),
                     offset=msg.offset(),
+                    error=exc,
                 )
             consumer.commit(message=msg, asynchronous=False)
     finally:
