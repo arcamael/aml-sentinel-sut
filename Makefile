@@ -1,5 +1,5 @@
 .PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
-        normalizer gen-golden verify-phase3
+        normalizer gen-golden gen-watchlists verify-phase3 verify-phase4
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -47,8 +47,14 @@ normalizer:
 gen-golden:
 	PYTHONPATH=src python -m tools.datagen golden --seed 42 --out data/golden/
 
+gen-watchlists:
+	PYTHONPATH=src python -m tools.datagen watchlists --seed 42 --out data/watchlists/
+
 verify-phase3:
 	PYTHONPATH=src python scripts/verify_phase3.py
+
+verify-phase4:
+	PYTHONPATH=src:. python scripts/verify_phase4.py
 
 test:
 	pytest -q

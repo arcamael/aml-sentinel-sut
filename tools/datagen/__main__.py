@@ -1,10 +1,11 @@
 """Data generator CLI (doc 04 §1).
 
-Phase 3 implements only the normalization golden slice; the ``golden`` command
-below is intentionally scoped to it. Later phases extend this with
-``watchlists``, ``profiles``, ``updates``, ``all``, and ``verify`` subcommands.
+Implemented so far: ``golden`` (normalization slice, Phase 3) and ``watchlists``
+(Phase 4). Later phases extend this with ``profiles``, ``updates``, ``all``, and
+``verify`` subcommands.
 
-    python -m tools.datagen golden --seed 42 --out data/golden/
+    python -m tools.datagen golden     --seed 42 --out data/golden/
+    python -m tools.datagen watchlists --seed 42 --out data/watchlists/
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import argparse
 import random
 from pathlib import Path
 
-from tools.datagen import normalization_golden
+from tools.datagen import normalization_golden, watchlists
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,6 +25,10 @@ def main(argv: list[str] | None = None) -> int:
     golden.add_argument("--seed", type=int, default=42)
     golden.add_argument("--out", type=Path, default=Path("data/golden/"))
 
+    wl = sub.add_parser("watchlists", help="generate provider watchlists + manifest")
+    wl.add_argument("--seed", type=int, default=42)
+    wl.add_argument("--out", type=Path, default=Path("data/watchlists/"))
+
     args = parser.parse_args(argv)
 
     if args.command == "golden":
@@ -31,6 +36,10 @@ def main(argv: list[str] | None = None) -> int:
         # is fully deterministic already, but we honor the contract uniformly.
         random.seed(args.seed)
         normalization_golden.generate(args.out)
+        return 0
+
+    if args.command == "watchlists":
+        watchlists.generate(args.out, seed=args.seed)
         return 0
 
     parser.error(f"unknown command: {args.command}")

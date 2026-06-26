@@ -38,6 +38,21 @@ class Settings(BaseSettings):
     # ── Kafka / Redpanda ─────────────────────────────────────────────────────
     kafka_bootstrap_servers: str = "localhost:9092"
 
+    # ── Provider gateway + mock providers (Phase 4) ──────────────────────────
+    # Base URLs default to the host-mapped mock ports; in compose the workers
+    # override these with the internal service hostnames.
+    world_check_url: str = "http://localhost:9101"
+    dow_jones_url: str = "http://localhost:9102"
+    comply_advantage_url: str = "http://localhost:9103"
+
+    provider_timeout_s: float = 2.0
+    provider_retries: int = 2  # additional attempts after the first
+    provider_backoff_base_s: float = 0.05
+    breaker_threshold: int = 3  # consecutive failures before opening
+    breaker_cooldown_s: float = 5.0
+    provider_cache_ttl_s: int = 300
+    provider_version_ttl_s: int = 10
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy / Alembic connection URL (psycopg2 driver)."""
