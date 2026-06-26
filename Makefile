@@ -1,4 +1,4 @@
-.PHONY: up down logs topics ps clean install lint test
+.PHONY: up down logs topics ps clean install lint test migrate migrate-down seed
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -22,6 +22,17 @@ topics:
 
 install:
 	pip install -e ".[dev]"
+
+# ── Database ─────────────────────────────────────────────────────────────────
+
+migrate:
+	PYTHONPATH=src alembic upgrade head
+
+migrate-down:
+	PYTHONPATH=src alembic downgrade base
+
+seed:
+	PYTHONPATH=src python -m aml_sentinel.db.seed_smoke
 
 lint:
 	ruff check src tests

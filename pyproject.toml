@@ -62,6 +62,10 @@ src = ["src"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Alembic autogenerates long single-line column definitions; don't fight it.
+"migrations/versions/*" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = false
