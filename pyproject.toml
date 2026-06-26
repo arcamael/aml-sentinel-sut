@@ -53,7 +53,14 @@ packages = ["src/aml_sentinel"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--tb=short"
+addopts = "--tb=short --strict-markers"
+markers = [
+    "unit: pure logic, no infrastructure",
+    "integration: gateway/mocks/consumers against the running stack",
+    "e2e: full pipeline ingest -> decision.made",
+    "dq: SQL data-quality monitors",
+    "reconciliation: watchlist-update re-screening scenarios",
+]
 
 [tool.ruff]
 line-length = 100

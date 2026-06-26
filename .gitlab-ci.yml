@@ -1,0 +1,126 @@
+# AML-Sentinel CI (primary — mirrors Exness GitLab CI).
+# Stages: lint -> unit -> integration -> e2e -> allure-report.
+# Kept in sync with .github/workflows/ci.yml.
+
+stages:
+  - lint
+  - unit
+  - integration
+  - e2e
+  - allure-report
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  PYTHONPATH: "src:."
+  AML_POSTGRES_HOST: postgres
+  AML_REDIS_HOST: redis
+  AML_KAFKA_BOOTSTRAP_SERVERS: "redpanda:9092"
+  POSTGRES_USER: aml
+  POSTGRES_PASSWORD: aml_secret
+  POSTGRES_DB: aml_sentinel
+
+cache:
+  paths:
+    - .pip-cache/
+
+# ── Reusable definitions ─────────────────────────────────────────────────────
+.python:
+  image: python:3.12-slim
+  before_script:
+    - pip install -e ".[dev]"
+
+.stack:
+  extends: .python
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+    - name: redpandadata/redpanda:v24.2.18
+      alias: redpanda
+      command:
+        - redpanda
+        - start
+        - --smp=1
+        - --memory=1G
+        - --reserve-memory=0M
+        - --overprovisioned
+        - --node-id=0
+        - --check=false
+        - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+        - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+  before_script:
+    - pip install -e ".[dev]"
+    - alembic upgrade head
+    - python scripts/create_topics.py
+    - python -m tools.datagen golden --out data/golden/
+    - python -m tools.datagen watchlists --out data/watchlists/
+    - python -m tools.datagen updates --out data/updates/
+
+# ── lint ─────────────────────────────────────────────────────────────────────
+lint:
+  extends: .python
+  stage: lint
+  script:
+    - ruff check src tests tools scripts mocks
+    - ruff format --check src tests tools scripts mocks
+
+# ── unit (no infrastructure) ─────────────────────────────────────────────────
+unit:
+  extends: .python
+  stage: unit
+  before_script:
+    - pip install -e ".[dev]"
+    - python -m tools.datagen golden --out data/golden/
+  script:
+    - pytest -q -m unit --alluredir=allure-results
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+    expire_in: 1 week
+
+# ── integration (gateway/mocks/consumers) ────────────────────────────────────
+integration:
+  extends: .stack
+  stage: integration
+  script:
+    - pytest -q -m integration --alluredir=allure-results
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+    expire_in: 1 week
+
+# ── e2e + data-quality + reconciliation ──────────────────────────────────────
+e2e:
+  extends: .stack
+  stage: e2e
+  script:
+    - pytest -q -m "e2e or dq or reconciliation" --alluredir=allure-results
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+    expire_in: 1 week
+
+# ── allure-report (aggregate the results into HTML) ──────────────────────────
+allure-report:
+  stage: allure-report
+  image: frankescobar/allure-docker-service:latest
+  needs:
+    - job: unit
+      artifacts: true
+    - job: integration
+      artifacts: true
+    - job: e2e
+      artifacts: true
+  script:
+    - allure generate allure-results --clean -o allure-report
+  artifacts:
+    when: always
+    paths:
+      - allure-report/
+    expire_in: 30 days
+  rules:
+    - when: always

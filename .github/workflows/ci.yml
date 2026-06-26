@@ -1,0 +1,119 @@
+# AML-Sentinel CI (GitHub Actions) — kept in sync with .gitlab-ci.yml.
+# Jobs: lint -> unit -> integration -> e2e -> allure-report.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  PYTHONPATH: "src:."
+  AML_POSTGRES_HOST: localhost
+  AML_REDIS_HOST: localhost
+  AML_KAFKA_BOOTSTRAP_SERVERS: "localhost:9092"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests tools scripts mocks
+      - run: ruff format --check src tests tools scripts mocks
+
+  unit:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: python -m tools.datagen golden --out data/golden/
+      - run: pytest -q -m unit --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-unit
+          path: allure-results/
+
+  stack-tests:
+    runs-on: ubuntu-latest
+    needs: unit
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aml
+          POSTGRES_PASSWORD: aml_secret
+          POSTGRES_DB: aml_sentinel
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aml -d aml_sentinel"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Redpanda needs a start command, which GHA `services:` can't provide, so
+      # run it directly and wait for the broker to advertise on localhost:9092.
+      - name: Start Redpanda
+        run: |
+          docker run -d --name redpanda -p 9092:9092 redpandadata/redpanda:v24.2.18 \
+            redpanda start --smp=1 --memory=1G --reserve-memory=0M --overprovisioned \
+            --node-id=0 --check=false \
+            --kafka-addr=PLAINTEXT://0.0.0.0:9092 \
+            --advertise-kafka-addr=PLAINTEXT://localhost:9092
+          for i in $(seq 1 30); do
+            if docker exec redpanda rpk cluster health | grep -q 'Healthy:.*true'; then
+              echo "redpanda healthy"; break; fi; sleep 2; done
+      - run: pip install -e ".[dev]"
+      - run: alembic upgrade head
+      - run: python scripts/create_topics.py
+      - run: |
+          python -m tools.datagen golden --out data/golden/
+          python -m tools.datagen watchlists --out data/watchlists/
+          python -m tools.datagen updates --out data/updates/
+      - name: integration
+        run: pytest -q -m integration --alluredir=allure-results
+      - name: e2e + dq + reconciliation
+        run: pytest -q -m "e2e or dq or reconciliation" --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-stack
+          path: allure-results/
+
+  allure-report:
+    runs-on: ubuntu-latest
+    needs: [unit, stack-tests]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Merge allure results
+        run: |
+          mkdir -p allure-results
+          find artifacts -type f -exec cp {} allure-results/ \;
+      - uses: simple-elf/allure-report-action@v1.9
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report
+          path: allure-report/

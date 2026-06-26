@@ -1,7 +1,8 @@
 .PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
         normalizer screening-worker decision-engine reconciler monitors gen-golden \
         gen-watchlists gen-matching gen-decisions gen-updates \
-        verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7 verify-phase8
+        verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7 verify-phase8 \
+        test-unit test-integration test-e2e test-allure allure-report
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -93,6 +94,21 @@ verify-phase8:
 
 test:
 	pytest -q
+
+test-unit:
+	pytest -q -m unit
+
+test-integration:
+	pytest -q -m integration
+
+test-e2e:
+	pytest -q -m "e2e or dq or reconciliation"
+
+test-allure:
+	pytest -q --alluredir=allure-results
+
+allure-report:
+	allure generate allure-results --clean -o allure-report && allure open allure-report
 
 test-cov:
 	pytest --cov=src/aml_sentinel --cov-report=term-missing -q
