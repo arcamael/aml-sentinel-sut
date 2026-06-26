@@ -257,5 +257,21 @@ class ProviderGateway:
         else:
             self._log.info("gateway_query", status="ok", **fields)
 
+    def invalidate_provider(self, provider_id: str) -> int:
+        """Drop cached version + results for a provider (call on a list update).
+
+        Without this the short-lived ``gwver`` cache could keep serving the old
+        ``list_version`` (and its results) for up to its TTL after a watchlist
+        change, so a reconciliation re-screen would miss the new entry.
+        """
+        if self._redis is None:
+            return 0
+        deleted = 0
+        self._redis.delete(f"gwver:{provider_id}")
+        for key in self._redis.scan_iter(f"gw:{provider_id}:*"):
+            self._redis.delete(key)
+            deleted += 1
+        return deleted
+
     def close(self) -> None:
         self._client.close()

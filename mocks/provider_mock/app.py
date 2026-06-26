@@ -41,6 +41,19 @@ class FaultRequest(BaseModel):
     count: int = -1
 
 
+class ListControl(BaseModel):
+    """Mutate the served list (the provider is the external source of truth).
+
+    Models the watchlist update feed (doc 01 §7): the generator/test driver
+    adds/removes an entry and bumps ``list_version`` on the provider, then emits
+    ``watchlist.updated`` for the reconciler.
+    """
+
+    change: str  # add | remove | version_bump
+    new_list_version: str
+    entry: dict[str, Any] | None = None  # required for add; entry_id used for remove
+
+
 def _block_keys(name: str) -> set[str]:
     """Coarse blocking keys for a name: 3-char token prefixes + first letters."""
     keys: set[str] = set()
@@ -85,7 +98,14 @@ def create_app(
     state: dict[str, Any] = {
         "fault": {"type": "none", "remaining": 0},
         "requests": 0,
+        "list_version": list_version,  # mutable: bumped by /_control/list
     }
+
+    def _index_entry(entry: dict[str, Any]) -> None:
+        keys = _block_keys(entry["entity_name"])
+        for alias in entry.get("aliases", []):
+            keys |= _block_keys(alias)
+        index.append((keys, entry))
 
     def _fault_active() -> bool:
         f = state["fault"]
@@ -109,7 +129,7 @@ def create_app(
             "status": "ok",
             "provider_id": provider_id,
             "list_type": list_type,
-            "list_version": list_version,
+            "list_version": state["list_version"],
             "entries": len(entries),
         }
 
@@ -118,7 +138,7 @@ def create_app(
         return {
             "provider_id": provider_id,
             "list_type": list_type,
-            "list_version": list_version,
+            "list_version": state["list_version"],
             "entries": len(entries),
             "requests": state["requests"],
             "fault": state["fault"],
@@ -139,6 +159,27 @@ def create_app(
         else:
             state["fault"] = {"type": req.type, "remaining": req.count}
         return {"fault": state["fault"]}
+
+    @app.post("/_control/list")
+    def control_list(req: ListControl) -> dict[str, Any]:
+        """Add/remove an entry and/or bump ``list_version`` (the update feed)."""
+        if req.change == "add":
+            if not req.entry:
+                return JSONResponse(status_code=400, content={"error": "add requires entry"})
+            entries.append(req.entry)
+            _index_entry(req.entry)
+        elif req.change == "remove":
+            entry_id = (req.entry or {}).get("entry_id")
+            entries[:] = [e for e in entries if e["entry_id"] != entry_id]
+            index[:] = [(k, e) for k, e in index if e["entry_id"] != entry_id]
+        elif req.change != "version_bump":
+            return JSONResponse(status_code=400, content={"error": f"unknown change: {req.change}"})
+        state["list_version"] = req.new_list_version
+        return {
+            "change": req.change,
+            "list_version": state["list_version"],
+            "entries": len(entries),
+        }
 
     @app.get("/search")
     async def search(name: str, dob: str | None = None, limit: int = 50, offset: int = 0):
@@ -165,7 +206,7 @@ def create_app(
         return {
             "provider_id": provider_id,
             "list_type": list_type,
-            "list_version": list_version,
+            "list_version": state["list_version"],
             "total": len(matched),
             "candidates": page,
         }

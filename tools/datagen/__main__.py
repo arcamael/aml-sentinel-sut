@@ -18,6 +18,7 @@ from tools.datagen import (
     decisions_golden,
     matching_golden,
     normalization_golden,
+    updates,
     watchlists,
 )
 
@@ -40,6 +41,10 @@ def main(argv: list[str] | None = None) -> int:
     wl.add_argument("--seed", type=int, default=42)
     wl.add_argument("--out", type=Path, default=Path("data/watchlists/"))
 
+    upd = sub.add_parser("updates", help="generate reconciliation update scenarios")
+    upd.add_argument("--seed", type=int, default=42)
+    upd.add_argument("--out", type=Path, default=Path("data/updates/"))
+
     args = parser.parse_args(argv)
 
     if args.command == "golden":
@@ -56,6 +61,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "watchlists":
         watchlists.generate(args.out, seed=args.seed)
+        return 0
+
+    if args.command == "updates":
+        updates.generate(args.out)
         return 0
 
     parser.error(f"unknown command: {args.command}")

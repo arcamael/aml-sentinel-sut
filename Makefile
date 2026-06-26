@@ -1,6 +1,7 @@
 .PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
-        normalizer screening-worker decision-engine gen-golden gen-watchlists \
-        gen-matching gen-decisions verify-phase3 verify-phase4 verify-phase5 verify-phase6
+        normalizer screening-worker decision-engine reconciler gen-golden gen-watchlists \
+        gen-matching gen-decisions gen-updates \
+        verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ screening-worker:
 decision-engine:
 	PYTHONPATH=src python -m aml_sentinel.workers.decision
 
+reconciler:
+	PYTHONPATH=src python -m aml_sentinel.workers.reconciler
+
 gen-golden:
 	PYTHONPATH=src python -m tools.datagen golden --seed 42 --out data/golden/
 
@@ -63,6 +67,9 @@ gen-matching:
 gen-decisions:
 	PYTHONPATH=src python -m tools.datagen golden --set decisions --out data/golden/
 
+gen-updates:
+	PYTHONPATH=src python -m tools.datagen updates --out data/updates/
+
 verify-phase3:
 	PYTHONPATH=src python scripts/verify_phase3.py
 
@@ -74,6 +81,9 @@ verify-phase5:
 
 verify-phase6:
 	PYTHONPATH=src:. python scripts/verify_phase6.py
+
+verify-phase7:
+	PYTHONPATH=src:. python scripts/verify_phase7.py
 
 test:
 	pytest -q
