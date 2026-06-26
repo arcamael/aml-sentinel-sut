@@ -56,9 +56,7 @@ class RawProfile(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    __table_args__ = (
-        CheckConstraint(_in("source", SOURCE_VALUES), name="ck_raw_profile_source"),
-    )
+    __table_args__ = (CheckConstraint(_in("source", SOURCE_VALUES), name="ck_raw_profile_source"),)
 
 
 class NormalizedProfile(Base):
@@ -178,9 +176,7 @@ class Decision(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    __table_args__ = (
-        CheckConstraint(_in("outcome", OUTCOME_VALUES), name="ck_decision_outcome"),
-    )
+    __table_args__ = (CheckConstraint(_in("outcome", OUTCOME_VALUES), name="ck_decision_outcome"),)
 
 
 class Audit(Base):
@@ -230,9 +226,7 @@ class ReconciliationRun(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(_in("list_type", LIST_TYPE_VALUES), name="ck_reconciliation_list_type"),

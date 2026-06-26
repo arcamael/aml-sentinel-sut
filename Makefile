@@ -1,4 +1,5 @@
-.PHONY: up down logs topics ps clean install lint test migrate migrate-down seed
+.PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
+        normalizer gen-golden verify-phase3
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -35,8 +36,19 @@ seed:
 	PYTHONPATH=src python -m aml_sentinel.db.seed_smoke
 
 lint:
-	ruff check src tests
-	ruff format --check src tests
+	ruff check src tests tools scripts
+	ruff format --check src tests tools scripts
+
+# ── Workers / data generation (Phase 3) ──────────────────────────────────────
+
+normalizer:
+	PYTHONPATH=src python -m aml_sentinel.workers.normalizer
+
+gen-golden:
+	PYTHONPATH=src python -m tools.datagen golden --seed 42 --out data/golden/
+
+verify-phase3:
+	PYTHONPATH=src python scripts/verify_phase3.py
 
 test:
 	pytest -q

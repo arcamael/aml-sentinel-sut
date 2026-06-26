@@ -134,11 +134,25 @@ services:
     networks:
       - aml-net
 
-  # ─── Normalizer worker (placeholder — Phase 3) ───────────────────────────
-  # normalizer:
-  #   build: .
-  #   container_name: aml-normalizer
-  #   networks: [aml-net]
+  # ─── Normalizer worker (Phase 3) ─────────────────────────────────────────
+  normalizer:
+    build: .
+    container_name: aml-normalizer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
+    environment:
+      AML_POSTGRES_HOST: postgres
+      AML_REDIS_HOST: redis
+      AML_KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+    command: ["python", "-m", "aml_sentinel.workers.normalizer"]
+    restart: unless-stopped
+    networks:
+      - aml-net
 
   # ─── Screening worker (placeholder — Phase 5) ────────────────────────────
   # screening-worker:
