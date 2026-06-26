@@ -1,0 +1,163 @@
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  aml-net:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres-data:
+  redis-data:
+  redpanda-data:
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ─── PostgreSQL 16 ───────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aml-postgres
+    environment:
+      POSTGRES_USER: aml
+      POSTGRES_PASSWORD: aml_secret
+      POSTGRES_DB: aml_sentinel
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aml -d aml_sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aml-net
+
+  # ─── Redis 7 ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aml-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aml-net
+
+  # ─── Redpanda (Kafka-compatible) ──────────────────────────────────────────
+  redpanda:
+    image: redpandadata/redpanda:v24.2.18
+    container_name: aml-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --advertise-pandaproxy-addr=localhost:8082
+      - --schema-registry-addr=0.0.0.0:8081
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "9092:9092"     # Kafka API (external)
+      - "29092:29092"   # Kafka API (internal)
+      - "8081:8081"     # Schema Registry
+      - "8082:8082"     # Pandaproxy
+      - "9644:9644"     # Prometheus metrics
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks:
+      - aml-net
+
+  # ─── Redpanda Init (topic bootstrap) ─────────────────────────────────────
+  redpanda-init:
+    image: redpandadata/redpanda:v24.2.18
+    container_name: aml-redpanda-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/scripts/bootstrap_topics.sh"]
+    volumes:
+      - ./scripts:/scripts:ro
+    environment:
+      REDPANDA_BROKERS: redpanda:29092
+    networks:
+      - aml-net
+    restart: "no"
+
+  # ─── Ingestion API (placeholder — Phase 2) ───────────────────────────────
+  # api:
+  #   build: .
+  #   container_name: aml-api
+  #   depends_on:
+  #     postgres: { condition: service_healthy }
+  #     redpanda: { condition: service_healthy }
+  #     redis:    { condition: service_healthy }
+  #   ports:
+  #     - "8000:8000"
+  #   networks:
+  #     - aml-net
+
+  # ─── Normalizer worker (placeholder — Phase 3) ───────────────────────────
+  # normalizer:
+  #   build: .
+  #   container_name: aml-normalizer
+  #   networks: [aml-net]
+
+  # ─── Screening worker (placeholder — Phase 5) ────────────────────────────
+  # screening-worker:
+  #   build: .
+  #   container_name: aml-screening
+  #   networks: [aml-net]
+
+  # ─── Decision engine (placeholder — Phase 6) ─────────────────────────────
+  # decision-engine:
+  #   build: .
+  #   container_name: aml-decision
+  #   networks: [aml-net]
+
+  # ─── Reconciler (placeholder — Phase 7) ──────────────────────────────────
+  # reconciler:
+  #   build: .
+  #   container_name: aml-reconciler
+  #   networks: [aml-net]
+
+  # ─── Mock providers (placeholders — Phase 4) ─────────────────────────────
+  # world-check-mock:
+  #   build: mocks/world_check
+  #   container_name: aml-mock-world-check
+  #   networks: [aml-net]
+
+  # dow-jones-mock:
+  #   build: mocks/dow_jones
+  #   container_name: aml-mock-dow-jones
+  #   networks: [aml-net]
+
+  # comply-advantage-mock:
+  #   build: mocks/comply_advantage
+  #   container_name: aml-mock-comply-advantage
+  #   networks: [aml-net]
