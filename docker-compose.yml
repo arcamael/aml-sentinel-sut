@@ -338,3 +338,35 @@ services:
       retries: 10
     networks:
       - aml-net
+
+  # ─── Go screening worker (Phase 10 [STRETCH]) ────────────────────────────
+  # Drop-in replacement for screening-worker (same topics/DB/contract).
+  # Start with: docker compose --profile go up -d screening-worker-go
+  # (stop the Python screening-worker first — they share the consumer group).
+  screening-worker-go:
+    build:
+      context: ./go-screening
+    container_name: aml-screening-go
+    profiles: ["go"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
+      world-check-mock:
+        condition: service_healthy
+      dow-jones-mock:
+        condition: service_healthy
+      comply-advantage-mock:
+        condition: service_healthy
+    environment:
+      AML_POSTGRES_HOST: postgres
+      AML_KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      AML_WORLD_CHECK_URL: http://world-check-mock:8000
+      AML_DOW_JONES_URL: http://dow-jones-mock:8000
+      AML_COMPLY_ADVANTAGE_URL: http://comply-advantage-mock:8000
+    restart: unless-stopped
+    networks:
+      - aml-net

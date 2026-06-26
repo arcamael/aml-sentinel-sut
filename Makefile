@@ -2,7 +2,7 @@
         normalizer screening-worker decision-engine reconciler monitors gen-golden \
         gen-watchlists gen-matching gen-decisions gen-updates \
         verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7 verify-phase8 \
-        test-unit test-integration test-e2e test-allure allure-report
+        verify-phase10 go-test test-unit test-integration test-e2e test-allure allure-report
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -91,6 +91,14 @@ verify-phase7:
 
 verify-phase8:
 	PYTHONPATH=src:. python scripts/verify_phase8.py
+
+# ── [STRETCH] Go screening worker (Phase 10) ─────────────────────────────────
+
+go-test:
+	docker run --rm -v "$(PWD)":/app -w /app/go-screening golang:1.23 go test ./...
+
+verify-phase10:
+	PYTHONPATH=src:. python scripts/verify_phase10.py
 
 test:
 	pytest -q
