@@ -1,5 +1,6 @@
 .PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
-        normalizer gen-golden gen-watchlists verify-phase3 verify-phase4
+        normalizer screening-worker gen-golden gen-watchlists gen-matching \
+        verify-phase3 verify-phase4 verify-phase5
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
 
@@ -44,17 +45,26 @@ lint:
 normalizer:
 	PYTHONPATH=src python -m aml_sentinel.workers.normalizer
 
+screening-worker:
+	PYTHONPATH=src python -m aml_sentinel.workers.screening
+
 gen-golden:
 	PYTHONPATH=src python -m tools.datagen golden --seed 42 --out data/golden/
 
 gen-watchlists:
 	PYTHONPATH=src python -m tools.datagen watchlists --seed 42 --out data/watchlists/
 
+gen-matching:
+	PYTHONPATH=src python -m tools.datagen golden --set matching --out data/golden/
+
 verify-phase3:
 	PYTHONPATH=src python scripts/verify_phase3.py
 
 verify-phase4:
 	PYTHONPATH=src:. python scripts/verify_phase4.py
+
+verify-phase5:
+	PYTHONPATH=src:. python scripts/verify_phase5.py
 
 test:
 	pytest -q

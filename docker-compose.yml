@@ -154,11 +154,36 @@ services:
     networks:
       - aml-net
 
-  # ─── Screening worker (placeholder — Phase 5) ────────────────────────────
-  # screening-worker:
-  #   build: .
-  #   container_name: aml-screening
-  #   networks: [aml-net]
+  # ─── Screening worker (Phase 5) ──────────────────────────────────────────
+  screening-worker:
+    build: .
+    container_name: aml-screening
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
+      world-check-mock:
+        condition: service_healthy
+      dow-jones-mock:
+        condition: service_healthy
+      comply-advantage-mock:
+        condition: service_healthy
+    environment:
+      AML_POSTGRES_HOST: postgres
+      AML_REDIS_HOST: redis
+      AML_KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      AML_WORLD_CHECK_URL: http://world-check-mock:8000
+      AML_DOW_JONES_URL: http://dow-jones-mock:8000
+      AML_COMPLY_ADVANTAGE_URL: http://comply-advantage-mock:8000
+    command: ["python", "-m", "aml_sentinel.workers.screening"]
+    restart: unless-stopped
+    networks:
+      - aml-net
 
   # ─── Decision engine (placeholder — Phase 6) ─────────────────────────────
   # decision-engine:

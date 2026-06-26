@@ -14,7 +14,7 @@ import argparse
 import random
 from pathlib import Path
 
-from tools.datagen import normalization_golden, watchlists
+from tools.datagen import matching_golden, normalization_golden, watchlists
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,6 +24,12 @@ def main(argv: list[str] | None = None) -> int:
     golden = sub.add_parser("golden", help="generate golden expected-output datasets")
     golden.add_argument("--seed", type=int, default=42)
     golden.add_argument("--out", type=Path, default=Path("data/golden/"))
+    golden.add_argument(
+        "--set",
+        choices=["normalization", "matching", "all"],
+        default="all",
+        help="which golden set to generate",
+    )
 
     wl = sub.add_parser("watchlists", help="generate provider watchlists + manifest")
     wl.add_argument("--seed", type=int, default=42)
@@ -32,10 +38,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "golden":
-        # Seed every RNG for determinism (hard rule #1); the normalization slice
-        # is fully deterministic already, but we honor the contract uniformly.
+        # Seed every RNG for determinism (hard rule #1); the golden slices are
+        # fully deterministic already, but we honor the contract uniformly.
         random.seed(args.seed)
-        normalization_golden.generate(args.out)
+        if args.set in ("normalization", "all"):
+            normalization_golden.generate(args.out)
+        if args.set in ("matching", "all"):
+            matching_golden.generate(args.out)
         return 0
 
     if args.command == "watchlists":
