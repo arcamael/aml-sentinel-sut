@@ -120,6 +120,11 @@ def process_message(
                         "score": scored.score,
                         "dob_match": scored.dob_match,
                         "evidence_ref": cand.entry_id,
+                        # Risk attributes the decision engine needs (PEP tier,
+                        # media confidence); carried on the event + audit, not in
+                        # the match table.
+                        "pep_tier": cand.risk_payload.get("pep_tier"),
+                        "media_confidence": cand.risk_payload.get("media_confidence"),
                     }
                 )
                 max_score = max(max_score, scored.score)

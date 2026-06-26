@@ -185,11 +185,25 @@ services:
     networks:
       - aml-net
 
-  # ─── Decision engine (placeholder — Phase 6) ─────────────────────────────
-  # decision-engine:
-  #   build: .
-  #   container_name: aml-decision
-  #   networks: [aml-net]
+  # ─── Decision engine (Phase 6) ───────────────────────────────────────────
+  decision-engine:
+    build: .
+    container_name: aml-decision
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
+    environment:
+      AML_POSTGRES_HOST: postgres
+      AML_REDIS_HOST: redis
+      AML_KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+    command: ["python", "-m", "aml_sentinel.workers.decision"]
+    restart: unless-stopped
+    networks:
+      - aml-net
 
   # ─── Reconciler (placeholder — Phase 7) ──────────────────────────────────
   # reconciler:
