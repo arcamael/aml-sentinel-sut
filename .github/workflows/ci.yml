@@ -100,18 +100,24 @@ jobs:
     needs: [unit, stack-tests]
     if: always()
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
       - name: Merge allure results
         run: |
           mkdir -p allure-results
-          find artifacts -type f -exec cp {} allure-results/ \;
-      - uses: simple-elf/allure-report-action@v1.9
+          find artifacts -type f -name '*.json' -exec cp {} allure-results/ \; || true
+      - uses: actions/setup-java@v4
         with:
-          allure_results: allure-results
-          allure_report: allure-report
+          distribution: temurin
+          java-version: "17"
+      - name: Generate Allure report (official CLI)
+        run: |
+          ALLURE_VERSION=2.30.0
+          curl -fsSLo allure.tgz \
+            "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
+          tar -xzf allure.tgz
+          "allure-${ALLURE_VERSION}/bin/allure" generate allure-results --clean -o allure-report
       - uses: actions/upload-artifact@v4
         if: always()
         with:

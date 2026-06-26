@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import sys
-import uuid
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -30,6 +29,7 @@ from aml_sentinel.db.base import SessionLocal
 from aml_sentinel.db.models import Audit, Decision
 from aml_sentinel.decisioning.rules import decide
 from aml_sentinel.events import TOPIC_DECISION_MADE, TOPIC_SCREENING_COMPLETED, EventProducer
+from aml_sentinel.ids import uuid7
 from aml_sentinel.matching.normalize import normalize
 from aml_sentinel.observability.logging import configure_logging
 from aml_sentinel.providers.gateway import ProviderGateway
@@ -82,7 +82,7 @@ def _consume_decision_made(client_id: str) -> dict | None:
 def _screen_then_decide(gateway, producer, *, full_name, dob, nationality):
     """Run screening → decision for one profile; return the DecisionOutcome + ids."""
     client_id = f"cli_decide_{ULID()}"
-    trace_id = str(uuid.uuid7())
+    trace_id = str(uuid7())
     norm = normalize({"full_name": full_name, "dob": dob, "nationality": nationality})
     norm_env = {
         "trace_id": trace_id,

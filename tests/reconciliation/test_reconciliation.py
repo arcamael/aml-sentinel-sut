@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import uuid
-
 import allure
 import httpx
 import pytest
 from sqlalchemy import text
 
 from aml_sentinel.db.base import SessionLocal
+from aml_sentinel.ids import uuid7
 from aml_sentinel.workers import reconciler as recon
 from tests.helpers import create_client, screen_and_decide
 
@@ -39,7 +38,7 @@ def _latest_outcome(client_id: str) -> str | None:
 
 def _reconcile(gateway, producer, sm, *, change, new_version, entry=None):
     event = {
-        "trace_id": str(uuid.uuid7()),
+        "trace_id": str(uuid7()),
         "client_id": sm["provider_id"],
         "event_type": "watchlist.updated",
         "payload": {

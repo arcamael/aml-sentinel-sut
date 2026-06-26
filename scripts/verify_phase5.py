@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import sys
-import uuid
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -31,6 +30,7 @@ from aml_sentinel.events import (
     TOPIC_SCREENING_COMPLETED,
     EventProducer,
 )
+from aml_sentinel.ids import uuid7
 from aml_sentinel.matching.fuzzy import SCREENING_THRESHOLD, score_pair
 from aml_sentinel.observability.logging import configure_logging
 from aml_sentinel.providers.gateway import ProviderGateway
@@ -98,7 +98,7 @@ def check_worker_roundtrip() -> bool:
     from aml_sentinel.matching.normalize import normalize
 
     client_id = f"cli_screen_{ULID()}"
-    trace_id = str(uuid.uuid7())
+    trace_id = str(uuid7())
     result_norm = normalize(
         {"full_name": "Ivan Petrov", "dob": "1972-03-14", "nationality": "Russia"}
     )

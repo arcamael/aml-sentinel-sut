@@ -22,7 +22,6 @@ from __future__ import annotations
 import sys
 import threading
 import time
-import uuid
 from datetime import date
 
 import httpx
@@ -33,6 +32,7 @@ from ulid import ULID
 
 from aml_sentinel.db.base import SessionLocal
 from aml_sentinel.db.models import Decision, NormalizedProfile, RawProfile, Screening
+from aml_sentinel.ids import uuid7
 from aml_sentinel.matching.normalize import normalize
 from aml_sentinel.observability import app as monitor_app
 from mocks.alert_sink.app import app as alert_app
@@ -70,7 +70,7 @@ def _result(run_json: dict, check: str) -> dict:
 def _create_clean_client() -> str:
     """A fully-consistent client (raw→normalized→screening→decision, one trace)."""
     cid = f"cli_clean_{ULID()}"
-    tid = str(uuid.uuid7())
+    tid = str(uuid7())
     norm = normalize({"full_name": "Quintus Aurelius", "dob": "1985-05-05", "nationality": "Italy"})
     sid = str(ULID())
     with SessionLocal() as s:
@@ -196,7 +196,7 @@ def main() -> int:
             RawProfile(
                 id=str(ULID()),
                 client_id=lonely,
-                trace_id=str(uuid.uuid7()),
+                trace_id=str(uuid7()),
                 raw_payload={},
                 source="rest",
             )

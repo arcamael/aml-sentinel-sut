@@ -34,6 +34,7 @@ from aml_sentinel.events import (
     EventProducer,
     make_envelope,
 )
+from aml_sentinel.ids import uuid7
 from aml_sentinel.matching.normalize import normalize
 from aml_sentinel.providers.gateway import ProviderGateway
 from aml_sentinel.providers.models import ProviderConfig
@@ -95,7 +96,7 @@ def main() -> int:
     token = uuid.uuid4().hex[:8]
     go_cid = f"cli_go_{ULID()}"
     py_cid = f"cli_py_{ULID()}"
-    trace_id = str(uuid.uuid7())
+    trace_id = str(uuid7())
     norm = normalize({"full_name": "Ivan Petrov", "dob": "1972-03-14", "nationality": "Russia"})
 
     # Produce a profile.normalized for the Go worker to consume.
@@ -161,7 +162,7 @@ def main() -> int:
             redis_client=rds,
         )
         py_env = {
-            "trace_id": str(uuid.uuid7()),
+            "trace_id": str(uuid7()),
             "client_id": py_cid,
             "event_type": "profile.normalized",
             "payload": norm.to_normalized_payload(),

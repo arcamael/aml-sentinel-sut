@@ -8,7 +8,6 @@ not supply one; that ``trace_id`` is propagated unchanged downstream (hard rule 
 from __future__ import annotations
 
 import time
-import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Response
@@ -26,6 +25,7 @@ from aml_sentinel.events import (
     EventProducer,
     make_envelope,
 )
+from aml_sentinel.ids import uuid7
 from aml_sentinel.observability.logging import configure_logging, stage_log
 
 COMPONENT = "ingestion-api"
@@ -67,7 +67,7 @@ def create_client(
     started = time.perf_counter()
 
     # Generate identifiers when absent. trace_id is UUIDv7 (doc 01 §6).
-    trace_id = body.trace_id or str(uuid.uuid7())
+    trace_id = body.trace_id or str(uuid7())
     client_id = body.client_id or f"cli_{ULID()}"
     kyc = body.kyc_payload()
 

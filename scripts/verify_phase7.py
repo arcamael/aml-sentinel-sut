@@ -36,6 +36,7 @@ from aml_sentinel.config import settings
 from aml_sentinel.db.base import SessionLocal
 from aml_sentinel.db.models import NormalizedProfile, RawProfile, ReconciliationRun
 from aml_sentinel.events import EventProducer
+from aml_sentinel.ids import uuid7
 from aml_sentinel.matching.normalize import normalize
 from aml_sentinel.observability.logging import configure_logging
 from aml_sentinel.providers.gateway import ProviderGateway
@@ -70,7 +71,7 @@ def _wait_health(port: int, timeout_s: float = 10.0) -> None:
 def _create_client(profile: dict) -> tuple[str, str, object]:
     """Insert raw_profile + normalized_profile for a target; return ids + norm."""
     client_id = f"cli_recon_{ULID()}"
-    trace_id = str(uuid.uuid7())
+    trace_id = str(uuid7())
     norm = normalize(profile)
     with SessionLocal() as s:
         s.add(
@@ -185,7 +186,7 @@ def run_scenario(scenario: dict, *, sanctions_port: int, pep_port: int, media_po
 
     # Emit watchlist.updated → reconcile.
     wl_event = {
-        "trace_id": str(uuid.uuid7()),
+        "trace_id": str(uuid7()),
         "client_id": provider_id,
         "event_type": "watchlist.updated",
         "payload": {

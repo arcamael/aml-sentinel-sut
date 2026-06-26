@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import sys
-import uuid
 from pathlib import Path
 
 from confluent_kafka import Consumer, TopicPartition
@@ -35,6 +34,7 @@ from aml_sentinel.events import (
     EventProducer,
     make_envelope,
 )
+from aml_sentinel.ids import uuid7
 from aml_sentinel.matching.normalize import normalize
 from aml_sentinel.observability.logging import configure_logging
 from aml_sentinel.workers.normalizer import _build_consumer, process_message
@@ -111,7 +111,7 @@ def check_idempotency() -> bool:
     configure_logging()
 
     client_id = f"cli_verify_{ULID()}"
-    trace_id = str(uuid.uuid7())
+    trace_id = str(uuid7())
     kyc = {
         "full_name": "Ivan  Petroff",
         "dob": "14/03/1972",
