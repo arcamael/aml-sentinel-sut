@@ -168,13 +168,28 @@ _COUNTRIES = ["RU", "UA", "BY", "KZ", "SY", "IR", "CN", "NG", "MX", "VE", "TR", 
 _PROGRAMS = ["OFAC-SDN", "EU-CFSP", "UN-SC", "HMT", "OFAC-SSI"]
 
 
+def _translit_surname(last: str) -> str | None:
+    """A *realistic* transliteration variant of a surname, or None.
+
+    Real variants substitute, not append: ``Petrov`` → ``Petroff`` (the trailing
+    ``-v`` becomes ``-ff``), ``Ivanov`` → ``Ivanoff``. Surnames without a known
+    pattern get no spelling variant rather than a synthetic artifact.
+    """
+    if last.endswith("v"):
+        return last[:-1] + "ff"
+    return None
+
+
 def _alias_variants(rng: random.Random, first: str, last: str) -> list[str]:
-    """Deterministic alias perturbations: order-swap, spelling, family member."""
+    """Deterministic alias perturbations: order-swap, transliteration, family."""
     variants: list[str] = []
     if rng.random() < 0.5:
         variants.append(f"{last} {first}")  # name-order swap
-    if rng.random() < 0.4:
-        variants.append(f"{first} {last}ff" if last.endswith("v") else f"{first} {last}a")
+    # Always draw so the RNG stream is independent of the surname shape.
+    take_translit = rng.random() < 0.4
+    translit = _translit_surname(last)
+    if translit is not None and take_translit:
+        variants.append(f"{first} {translit}")  # realistic spelling variant
     if rng.random() < 0.3:
         relative = rng.choice(_FIRST_NAMES)
         variants.append(f"{relative} {last}")  # family-member style

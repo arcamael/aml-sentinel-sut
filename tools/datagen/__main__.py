@@ -19,6 +19,7 @@ from tools.datagen import (
     matching_golden,
     normalization_golden,
     updates,
+    validate,
     watchlists,
 )
 
@@ -45,6 +46,9 @@ def main(argv: list[str] | None = None) -> int:
     upd.add_argument("--seed", type=int, default=42)
     upd.add_argument("--out", type=Path, default=Path("data/updates/"))
 
+    ver = sub.add_parser("verify", help="validate generated datasets (doc 04 §7)")
+    ver.add_argument("--out", type=Path, default=Path("data/"))
+
     args = parser.parse_args(argv)
 
     if args.command == "golden":
@@ -66,6 +70,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "updates":
         updates.generate(args.out)
         return 0
+
+    if args.command == "verify":
+        violations = validate.validate_all(args.out)
+        if not violations:
+            print("✓ dataset validation passed (no violations)")
+            return 0
+        from collections import Counter
+
+        by_check = Counter(v.check for v in violations)
+        print(f"✗ dataset validation FAILED — {len(violations)} violation(s):")
+        for check, count in sorted(by_check.items()):
+            print(f"    {check}: {count}")
+        for v in violations[:15]:
+            print(f"      {v}")
+        if len(violations) > 15:
+            print(f"      … and {len(violations) - 15} more")
+        return 1
 
     parser.error(f"unknown command: {args.command}")
     return 2

@@ -33,7 +33,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: python -m tools.datagen golden --out data/golden/
+      - name: Generate datasets
+        run: |
+          python -m tools.datagen golden --out data/golden/
+          python -m tools.datagen watchlists --out data/watchlists/
+          python -m tools.datagen updates --out data/updates/
+      - name: Validate datasets (doc 04 §7)
+        run: python -m tools.datagen verify --out data/
       - run: pytest -q -m unit --alluredir=allure-results
       - uses: actions/upload-artifact@v4
         if: always()

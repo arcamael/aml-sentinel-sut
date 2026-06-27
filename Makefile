@@ -1,6 +1,6 @@
 .PHONY: up down logs topics ps clean install lint test migrate migrate-down seed \
         normalizer screening-worker decision-engine reconciler monitors gen-golden \
-        gen-watchlists gen-matching gen-decisions gen-updates \
+        gen-watchlists gen-matching gen-decisions gen-updates gen-all verify-data \
         verify-phase3 verify-phase4 verify-phase5 verify-phase6 verify-phase7 verify-phase8 \
         verify-phase10 go-test test-unit test-integration test-e2e test-allure allure-report
 
@@ -73,6 +73,11 @@ gen-decisions:
 
 gen-updates:
 	PYTHONPATH=src python -m tools.datagen updates --out data/updates/
+
+gen-all: gen-golden gen-watchlists gen-updates
+
+verify-data:
+	PYTHONPATH=src python -m tools.datagen verify --out data/
 
 verify-phase3:
 	PYTHONPATH=src python scripts/verify_phase3.py

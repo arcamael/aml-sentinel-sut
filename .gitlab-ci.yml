@@ -72,6 +72,9 @@ unit:
   before_script:
     - pip install -e ".[dev]"
     - python -m tools.datagen golden --out data/golden/
+    - python -m tools.datagen watchlists --out data/watchlists/
+    - python -m tools.datagen updates --out data/updates/
+    - python -m tools.datagen verify --out data/   # dataset quality (doc 04 §7)
   script:
     - pytest -q -m unit --alluredir=allure-results
   artifacts:
